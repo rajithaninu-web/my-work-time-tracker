@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="si">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png"><title>My Work Time Tracker V3.4</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--p:#151f30;--p2:#1c2940;--t:#eef4ff;--m:#9aabc4;--l:#2b3b55;--b:#5aa7ff;--g:#39d98a;--o:#ffb454}
+*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg);color:var(--t);font:15px Arial,sans-serif}.wrap{max-width:720px;margin:auto}header{padding:10px 2px}h1{font-size:24px;margin:4px 0 8px}h2{font-size:18px;margin:0 0 14px}.muted,.note{color:var(--m);font-size:12px;line-height:1.5}.card{background:var(--p);border:1px solid var(--l);border-radius:16px;padding:15px;margin:12px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}label{display:block;color:var(--m);font-size:12px;margin-bottom:6px}input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--l);background:#0d1727;color:var(--t);font-size:15px;min-height:44px}textarea{min-height:65px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:var(--p2);padding:12px;border-radius:12px}.stat small{display:block;color:var(--m);font-size:12px}.stat strong{display:block;font-size:20px;margin-top:6px;overflow-wrap:anywhere}button{border:0;border-radius:10px;padding:12px 14px;margin:5px 4px 0 0;background:var(--b);color:#071321;font-weight:bold;font-size:14px}button.green{background:var(--g)}button.orange{background:var(--o)}button.gray{background:#30415d;color:var(--t)}button.red{background:#65313e;color:#fff}.hidden{display:none!important}.session{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--p2);padding:9px;border-radius:10px;margin-top:8px;font-size:13px}.session button{margin:0;padding:7px 9px}@media(max-width:400px){body{padding:9px}.card{padding:12px}.stat strong{font-size:18px}}
+</style></head>
+<body><main class="wrap">
+<header><div class="muted">V3.4 • Manual Time Entry</div><h1>My Work Time Tracker</h1><div class="muted">Work Time • Driving Time • OT Calculator</div></header>
+<section class="card"><h2>📊 Monthly Summary</h2><div class="grid" style="margin-bottom:10px"><div class="full"><label>මාසය</label><input type="month" id="month"></div></div><div class="stats">
+<div class="stat"><small>OT Hours</small><strong id="sumOT">0h 00m</strong></div><div class="stat"><small>OT Salary</small><strong id="sumPay">Rs. 0.00</strong></div>
+<div class="stat"><small>Work Days</small><strong id="sumDays">0</strong></div><div class="stat"><small>Driving Time</small><strong id="sumDrive">0h 00m</strong></div>
+<div class="stat"><small>Total Work</small><strong id="sumWork">0h 00m</strong></div><div class="stat"><small>Normal Work</small><strong id="sumNormal">0h 00m</strong></div></div><p class="note">OT Rate: Rs. 656.25 / hour</p></section>
+<section class="card"><h2>🕒 Work Time</h2><div class="grid">
+<div class="full"><label>දිනය</label><input type="date" id="date"></div>
+<div><label>Start Time</label><input type="time" id="on" value="08:00"></div><div><label>End Time</label><input type="time" id="off" value="17:00"></div>
+<div class="full"><label>සටහන (අවශ්‍ය නම්)</label><textarea id="note"></textarea></div></div>
+<p class="note" id="preview">වේලාවන් ඇතුළත් කරන්න.</p><button class="green" id="saveWork">Save Work</button><button class="gray" id="clearWork">Clear Fields</button></section>
+<section class="card"><h2>🚗 Driving Time</h2><div class="grid">
+<div class="full"><label>දිනය</label><input type="date" id="driveDate"></div>
+<div class="full"><label>Driving Time ක්‍රමය</label><select id="driveMode"><option value="duration">Hours / Minutes</option><option value="range">Start / End Time</option></select></div>
+<div class="grid full" id="durationFields"><div><label>Hours</label><input type="number" min="0" id="driveHours" value="0"></div><div><label>Minutes</label><input type="number" min="0" max="59" id="driveMinutes" value="0"></div></div>
+<div class="grid full hidden" id="rangeFields"><div><label>Driving Start</label><input type="time" id="driveStart"></div><div><label>Driving End</label><input type="time" id="driveEnd"></div></div></div>
+<button class="green" id="addDrive">Add Driving Session</button><div id="sessions"></div></section>
+<section class="card"><h2>📁 Backup & Reports</h2><p class="note">Backup එක ආරක්ෂිතව තියාගන්න. Restore කළ විට දැනට ඇති දත්ත වෙනුවට Backup දත්ත යෙදේ.</p>
+<button class="orange" id="backup">Download Backup</button><button class="gray" id="restore">Restore Backup</button><input class="hidden" type="file" id="restoreFile" accept=".json,application/json"><button class="gray" id="csv">Download CSV Report</button></section>
+<p class="note">දත්ත මෙම browser එකේම save වේ. Browser data clear කළහොත් දත්ත නැති විය හැකි නිසා Backup තබාගන්න.</p>
+</main>
+<script>
+"use strict";
+const KEY="myWorkTrackerFreshV33", RATE=656.25, $=id=>document.getElementById(id);
+const today=()=>{let d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+let data=[];try{let v=JSON.parse(localStorage.getItem(KEY)||"[]");data=Array.isArray(v)?v:[]}catch(e){}
+const save=()=>localStorage.setItem(KEY,JSON.stringify(data));
+const findDay=date=>data.find(x=>x.date===date);
+function dayFor(date){let x=findDay(date);if(!x){x={date,workRecord:null,driveSessions:[]};data.push(x)}if(!Array.isArray(x.driveSessions))x.driveSessions=[];return x}
+const toMin=t=>{if(!t)return null;let a=t.split(":").map(Number);return a[0]*60+a[1]};
+const fmt=n=>{n=Math.max(0,Math.round(n||0));return Math.floor(n/60)+"h "+String(n%60).padStart(2,"0")+"m"};
+const cash=n=>"Rs. "+Number(n||0).toLocaleString("en-LK",{minimumFractionDigits:2,maximumFractionDigits:2});
+function calc(date,start,end){let s=toMin(start),e=toMin(end);if(s===null||e===null||e<=s)return null;let dow=new Date(date+"T12:00:00").getDay(),ot=0,lunch=0;
+if(dow>=1&&dow<=5){ot=Math.max(0,Math.min(e,480)-s)+Math.max(0,e-Math.max(s,1020));lunch=Math.max(0,Math.min(e,780)-Math.max(s,720))}
+else if(dow===6){ot=Math.max(0,Math.min(e,480)-s)+Math.max(0,e-Math.max(s,780))}
+let work=e-s-lunch;ot=Math.min(ot,work);return{on:start,off:end,work,normal:work-ot,ot,note:$("note").value.trim()}}
+function preview(){let r=calc($("date").value,$("on").value,$("off").value);$("preview").textContent=r?`Total Work: ${fmt(r.work)} • Normal: ${fmt(r.normal)} • OT: ${fmt(r.ot)} • OT Pay: ${cash(r.ot/60*RATE)}`:"නිවැරදි Start / End Time ඇතුළත් කරන්න. End Time එක Start Time එකට පසුව විය යුතුයි."}
+function saveWork(){let d=$("date").value;if(!d)return alert("දිනය තෝරන්න.");let r=calc(d,$("on").value,$("off").value);if(!r)return alert("Start සහ End Time නිවැරදිව ඇතුළත් කරන්න.");dayFor(d).workRecord=r;save();render();$("date").value=d;preview();alert("Work Record Save වුණා.");}
+function driveInput(){if($("driveMode").value==="duration"){let h=Number($("driveHours").value||0),m=Number($("driveMinutes").value||0);if(h<0||m<0||m>59)return null;let n=h*60+m;return n>0?{minutes:n,start:"",end:""}:null}
+let s=toMin($("driveStart").value),e=toMin($("driveEnd").value);if(s===null||e===null||s===e)return null;return{minutes:e>s?e-s:1440-s+e,start:$("driveStart").value,end:$("driveEnd").value}}
+function addDrive(){let d=$("driveDate").value;if(!d)return alert("දිනය තෝරන්න.");let r=driveInput();if(!r)return alert("Driving Time නිවැරදිව ඇතුළත් කරන්න.");dayFor(d).driveSessions.push({id:Date.now().toString(),...r});save();render();$("driveDate").value=d;$("driveHours").value=0;$("driveMinutes").value=0;$("driveStart").value="";$("driveEnd").value="";renderSessions();alert("Driving Session Save වුණා.");}
+function renderSessions(){let d=$("driveDate").value,x=findDay(d),ss=x?.driveSessions||[];$("sessions").innerHTML=ss.length?ss.map((s,i)=>`<div class="session"><span>Session ${i+1}: ${fmt(s.minutes)} ${s.start&&s.end?"("+s.start+"–"+s.end+")":""}</span><button class="red" data-id="${s.id}">Delete</button></div>`).join(""):'<p class="note">මෙම දිනයට Driving Sessions නැහැ.</p>';$("sessions").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{let x=findDay(d);x.driveSessions=x.driveSessions.filter(s=>String(s.id)!==b.dataset.id);if(!x.workRecord&&!x.driveSessions.length)data=data.filter(z=>z.date!==d);save();render()})}
+function render(){let m=$("month").value||today().slice(0,7),arr=data.filter(x=>x.date?.slice(0,7)===m),ot=0,w=0,n=0,dr=0,days=0;arr.forEach(x=>{if(x.workRecord){ot+=x.workRecord.ot||0;w+=x.workRecord.work||0;n+=x.workRecord.normal||0;days++}(x.driveSessions||[]).forEach(s=>dr+=s.minutes||0)});$("sumOT").textContent=fmt(ot);$("sumPay").textContent=cash(ot/60*RATE);$("sumDays").textContent=days;$("sumDrive").textContent=fmt(dr);$("sumWork").textContent=fmt(w);$("sumNormal").textContent=fmt(n);renderSessions()}
+function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function backup(){download(new Blob([JSON.stringify({app:"My Work Time Tracker",version:"3.4",data},null,2)],{type:"application/json"}),"work-tracker-backup-"+today()+".json")}
+function restore(){ $("restoreFile").click() }
+$("restoreFile").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let v=JSON.parse(r.result),a=Array.isArray(v)?v:v.data;if(!Array.isArray(a))throw 0;if(!confirm("දැනට ඇති දත්ත වෙනුවට Backup දත්ත Restore කරන්නද?"))return;data=a.map(x=>({date:x.date,workRecord:x.workRecord||null,driveSessions:Array.isArray(x.driveSessions)?x.driveSessions:[]}));save();render();alert("Backup Restore වුණා.")}catch(_){alert("නිවැරදි JSON Backup ගොනුවක් තෝරන්න.")}finally{e.target.value=""}};r.readAsText(f)};
+function csvExport(){let m=$("month").value||today().slice(0,7),rows=[["Date","Day","Start","End","Work Minutes","Normal Minutes","OT Minutes","OT Pay","Driving Minutes","Driving Sessions","Note"]];data.filter(x=>x.date?.slice(0,7)===m).sort((a,b)=>a.date.localeCompare(b.date)).forEach(x=>{let w=x.workRecord||{},ss=x.driveSessions||[];rows.push([x.date,new Date(x.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"}),w.on||"",w.off||"",w.work||0,w.normal||0,w.ot||0,((w.ot||0)/60*RATE).toFixed(2),ss.reduce((a,s)=>a+(s.minutes||0),0),ss.length,w.note||""])});let csv="\ufeff"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");download(new Blob([csv],{type:"text/csv;charset=utf-8"}),"work-report-"+m+".csv")}
+$("date").value=today();$("driveDate").value=today();$("month").value=today().slice(0,7);
+["date","on","off","note"].forEach(id=>$(id).addEventListener("input",preview));
+$("month").onchange=render;$("driveDate").onchange=renderSessions;$("saveWork").onclick=saveWork;$("clearWork").onclick=()=>{$("on").value="08:00";$("off").value="17:00";$("note").value="";preview()};
+$("driveMode").onchange=()=>{let range=$("driveMode").value==="range";$("rangeFields").classList.toggle("hidden",!range);$("durationFields").classList.toggle("hidden",range)};
+$("addDrive").onclick=addDrive;$("backup").onclick=backup;$("restore").onclick=restore;$("csv").onclick=csvExport;
+render();preview();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.log("SW registration failed", err)));
+}
+</script></body></html>
